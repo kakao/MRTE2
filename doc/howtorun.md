@@ -1,6 +1,6 @@
-###How to run MRTE
+### How to run MRTE
 
-####MRTE 실행 순서
+#### MRTE 실행 순서
 1. MongoDB 시작
 2. MRTECollector 시작
 3. MRTEPlayer 시작
@@ -10,7 +10,7 @@
 - MRTECollector만 재지작하는 경우, MRTECollector는 시작될 때 Capped Collection을 삭제하고 새로 생성하게 되는데 이 과정에서 MRTEPlayer의 Taiable Cursor의 데이터 읽기가 실패하게 된다.
 - 가능하면 MRTECollector또는 MRTEPlayer만 재시작하는 작업은 하지 않도록 하자. 현재 구현에는 이런 경우에 대한 핸들링이 포함되어 있지 않기 때문이다.
 
-####MongoDB 시작
+#### MongoDB 시작
 MongoDB 서버는 MRTECollector에서 수집된 MySQL 명령을 MRTEPlayer로 전달하는 매개 역할을 하게 된다. 그래서 MongoDB 서버가 저장되는 데이터를 영구적으로 보관(Durable)할 필요가 없다. 그래서 MRTE에서 사용되는 MongoDB는 아래와 같이 "Percona Server for MongoDB"를 이용해서 메모리 엔진으로 Wiredtiger를 기동하는 것이 좋다(물론 꼭 메모리 스토리지 엔진을 사용해야 하는 것은 아님).
 
 ```yml
@@ -46,7 +46,7 @@ storage:
             statisticsLogDelaySecs: 0
 ```
 
-####MRTECollector 시작
+#### MRTECollector 시작
 MRTECollector는 GoLang으로 개발되어 있으며, 운영 체제 플랫폼에 따라서 새로 빌드를 해야 할수도 있다. 우선 MRTECollector는 아래오 같이 간단히 빌드를 할수 있다.
 
 ```shell
@@ -121,7 +121,7 @@ Usage of ./MRTECollector:
 
 **MRTECollector는 내부적으로 pcap library를 사용하기 때문에, 반드시 패킷을 캡쳐하고자 하는 MySQL 서버가 기동중인 서버에서 실행해야 함**
 
-####MRTEPlayer 시작
+#### MRTEPlayer 시작
 MRTEPlayer는 Java로 개발되었으며, 플랫폼에 따라서 빌드를 새로할 필요는 없다. MRTEPlayer는 아래와 같은 옵션들을 필요로 한다.
 ```
 --mysql_url              : MySQL target database jdbc url

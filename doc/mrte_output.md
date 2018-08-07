@@ -1,7 +1,7 @@
-###Understanding MRTE output
+### Understanding MRTE output
 MRTECollector와 MRTEPlayer는 각자 처리한 내용에 대한 메트릭들이나 상태 정보들을 초 단위로 출력하도록 하고 있는데, 이 정보를 활용하면 MRTECollector에서 캡쳐된 패킷과 처리 내용 그리고 MRTEPlayer가 Replay한 내용등을 확인할 수 있다. 또한 이 정보들을 이용하면 MRTECollector와 MRTEPlayer에서 발생중인 병목을 확인할 수도 있을 것이다.
 
-####MRTECollector output
+#### MRTECollector output
 MRTECollector가 실행되면, 아래와 같은 포맷의 상태 값들을 초당 1 라인씩 출력하게 된다.
 ```
 DateTime                TotalPacket     ValidPacket    PacketDropped  PacketIfDropped  AssembledPackets  ExpiredPackets  WaitingQueueCnt         MQError
@@ -33,7 +33,7 @@ DateTime                TotalPacket     ValidPacket    PacketDropped  PacketIfDr
 
 그리고 AssembledPackets 값이 0인 것을 보면, MySQL 서버의 SQL 명령이 대부분 하나의 Packet으로 전달될만큼 크기가 작다는 것과 잘못된 패킷 캡쳐나 분석으로 인해서 Expired된 패킷이 발생하지 않고 있다는 것을 알 수 있다. 또한 MRTECollector 내부적인 Channel에 적체된 패킷이 거의 없으며 MongoDB 큐 컬렉션 저장도 특별히 에러가 없음을 확인할 수 있다.
 
-####MRTEPlayer output
+#### MRTEPlayer output
 MRTEPlayer가 실행되면, 아래와 같은 포맷의 상태 값들을 초당 1 라인씩 출력하게 된다.
 ```
 DateTime             TotalPacket  ErrorPacket  NewSession  ExitSession  UserRequest(Slow)  Error (NoInitDB Duplicated Deadlock LockTimeout)

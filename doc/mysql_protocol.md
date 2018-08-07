@@ -1,6 +1,6 @@
-###MySQL Client-Server Protocol
+### MySQL Client-Server Protocol
 
-#####Common Header
+##### Common Header
 https://dev.mysql.com/doc/internals/en/mysql-packet.html
 
 | Type | Name | Description |
@@ -9,7 +9,7 @@ https://dev.mysql.com/doc/internals/en/mysql-packet.html
 |int<1>|sequence_id|Sequence Id|
 |byte< len >|payload|[len=payload_length] payload of the packet|
 
-#####Initial Handshake
+##### Initial Handshake
 https://dev.mysql.com/doc/internals/en/connection-phase-packets.html#packet-Protocol::HandshakeResponse
 
 ```
@@ -41,7 +41,7 @@ lenenc-str     value
   }
 ```
 
-#####Text Protocol
+##### Text Protocol
 https://dev.mysql.com/doc/internals/en/text-protocol.html
 
 |Type | Name | Description |
@@ -51,20 +51,20 @@ https://dev.mysql.com/doc/internals/en/text-protocol.html
 
 
 
-#####Command Examples
+##### Command Examples
 
 
-######COM_QUIT    : 
+###### COM_QUIT    : 
 ```
 01 00 00 00 01
 ```
 
-######COM_INIT_DB : 
+###### COM_INIT_DB : 
 ```
 05 00 00 00 02 74 65 73    74                         .....test
 ```
 
-######COM_QUERY : 
+###### COM_QUERY : 
 ```
 21 00 00 00 03 73 65 6c    65 63 74 20 40 40 76 65    !....select @@ve
 72 73 69 6f 6e 5f 63 6f    6d 6d 65 6e 74 20 6c 69    rsion_comment li
