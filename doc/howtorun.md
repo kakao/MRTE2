@@ -121,6 +121,8 @@ Usage of ./MRTECollector:
 
 **MRTECollector는 내부적으로 pcap library를 사용하기 때문에, 반드시 패킷을 캡쳐하고자 하는 MySQL 서버가 기동중인 서버에서 실행해야 함**
 
+**MRTECollector는 자신 프로세스가 사용중인 메모리(/proc/self/statm에서 residentMemory 크기)가 512MB를 넘어서면 자동으로 Terminiate된다. 만약 512MB 메모리가 너무 크다면, MRTECollector/MRTECollector.go 에서 checkMemoryUsage(512MB)를 적당히 줄여서 실행**
+
 #### MRTEPlayer 시작
 MRTEPlayer는 Java로 개발되었으며, 플랫폼에 따라서 빌드를 새로할 필요는 없다. MRTEPlayer는 아래와 같은 옵션들을 필요로 한다.
 ```
