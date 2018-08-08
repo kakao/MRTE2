@@ -16,12 +16,14 @@
 - 모든 데이터 타입의 값들이 String(Length encoded)으로 변환후 전달됨
 - 일반적으로 전송해야 할 데이터 크기 증가 & 변환 작업 필요
 - Little/Big endian에 대한 고려 불필요
+- https://dev.mysql.com/doc/internals/en/protocoltext-resultset.html
 
 ###### Binary Protocol
 - Serverside prepared statement에서 사용됨
 - 모든 데이터 타입에 대한 바이트 값을 그대로 전달
 - 바이트 값을 그대로 전송하므로 변환 작업 불필요
 - Little/Big endian에 대한 고려 필요
+- https://dev.mysql.com/doc/internals/en/binary-protocol-resultset.html
 
 ###### Text vs Binary Protocol difference
 - INT32(-987654321)
