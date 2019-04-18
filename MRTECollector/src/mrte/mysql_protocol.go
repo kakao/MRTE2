@@ -44,9 +44,12 @@ func isSelectStatement(sql string, depth int) bool {
 	
 	// Step-1 : Fast scaning
 	//        : 먼저 SQL statement에 주석이 없다고 가정하고, SQL statement 제일 앞쪽 6 바이트를 비교
+	if len(sql2)<6 { /* SQL 문장의 전체 길이가 6글자 미만이면, SELECT가 아닌 것으로 간주 */
+		return false
+	}
 	header := strings.ToLower(sql2[0:6])
 	
-	if header=="select" || strings.HasPrefix(header, "set") || strings.HasPrefix(header, "show") {
+	if header=="select" || strings.HasPrefix(header, "desc") || strings.HasPrefix(header, "show") {
 		return true
 	}
 
