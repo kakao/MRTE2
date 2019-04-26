@@ -165,7 +165,7 @@ func sendUserPacket(workerIdx int){
 				}
 				
 				// 사용자 데이터를 가지지 않은 TCP Control Packet은 무시				
-				if mp.Data==nil || len(mp.Data)==0 {
+				if mp.Data==nil || len(strings.TrimSpace(string(mp.Data)))==0 {
 					break
 				}
 				
