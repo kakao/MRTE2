@@ -100,8 +100,8 @@ public class MRTEPlayer {
 			}
 
 			player.mongoDatabaseUri = options.getStringParameter("mongo_url");
-			player.mongoCollectionPrefix = options.getStringParameter("mongo_db");
-			player.mongoDatabase = options.getStringParameter("mongo_collectionprefix");
+			player.mongoCollectionPrefix = options.getStringParameter("mongo_collectionprefix");
+			player.mongoDatabase = options.getStringParameter("mongo_db");
 			player.mongoCollections = options.getIntParameter("mongo_collections");
 			
 			player.slowQueryTime = options.getLongParameter("slow_query_time", 1000);
