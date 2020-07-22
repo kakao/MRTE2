@@ -104,12 +104,12 @@ type Session struct {
 	dialCred         *Credential
 	safeOp           *queryOp
 	mgoCluster       *mongoCluster
-	slaveSocket      *mongoSocket
-	masterSocket     *mongoSocket
+	subordinateSocket      *mongoSocket
+	mainSocket     *mongoSocket
 	m                sync.RWMutex
 	queryConfig      query
 	bypassValidation bool
-	slaveOk          bool
+	subordinateOk          bool
 
 	dialInfo *DialInfo
 }
@@ -844,11 +844,11 @@ func newSession(consistency Mode, cluster *mongoCluster, info *DialInfo) (sessio
 func copySession(session *Session, keepCreds bool) (s *Session) {
 	cluster := session.cluster()
 	cluster.Acquire()
-	if session.masterSocket != nil {
-		session.masterSocket.Acquire()
+	if session.mainSocket != nil {
+		session.mainSocket.Acquire()
 	}
-	if session.slaveSocket != nil {
-		session.slaveSocket.Acquire()
+	if session.subordinateSocket != nil {
+		session.subordinateSocket.Acquire()
 	}
 	var creds []Credential
 	if keepCreds {
@@ -866,12 +866,12 @@ func copySession(session *Session, keepCreds bool) (s *Session) {
 		dialCred:         session.dialCred,
 		safeOp:           session.safeOp,
 		mgoCluster:       session.mgoCluster,
-		slaveSocket:      session.slaveSocket,
-		masterSocket:     session.masterSocket,
+		subordinateSocket:      session.subordinateSocket,
+		mainSocket:     session.mainSocket,
 		m:                sync.RWMutex{},
 		queryConfig:      session.queryConfig,
 		bypassValidation: session.bypassValidation,
-		slaveOk:          session.slaveOk,
+		subordinateOk:          session.subordinateOk,
 		dialInfo:         session.dialInfo,
 	}
 	s = &scopy
@@ -1117,11 +1117,11 @@ func (db *Database) Logout() {
 		}
 	}
 	if found {
-		if session.masterSocket != nil {
-			session.masterSocket.Logout(dbname)
+		if session.mainSocket != nil {
+			session.mainSocket.Logout(dbname)
 		}
-		if session.slaveSocket != nil {
-			session.slaveSocket.Logout(dbname)
+		if session.subordinateSocket != nil {
+			session.subordinateSocket.Logout(dbname)
 		}
 	}
 	session.m.Unlock()
@@ -1131,11 +1131,11 @@ func (db *Database) Logout() {
 func (s *Session) LogoutAll() {
 	s.m.Lock()
 	for _, cred := range s.creds {
-		if s.masterSocket != nil {
-			s.masterSocket.Logout(cred.Source)
+		if s.mainSocket != nil {
+			s.mainSocket.Logout(cred.Source)
 		}
-		if s.slaveSocket != nil {
-			s.slaveSocket.Logout(cred.Source)
+		if s.subordinateSocket != nil {
+			s.subordinateSocket.Logout(cred.Source)
 		}
 	}
 	s.creds = s.creds[0:0]
@@ -1321,9 +1321,9 @@ func isAuthError(err error) bool {
 	return ok && e.Code == 13
 }
 
-func isNotMasterError(err error) bool {
+func isNotMainError(err error) bool {
 	e, ok := err.(*QueryError)
-	return ok && strings.Contains(e.Message, "not master")
+	return ok && strings.Contains(e.Message, "not main")
 }
 
 func (db *Database) runUserCmd(cmdName string, user *User) error {
@@ -2077,7 +2077,7 @@ func (s *Session) cluster() *mongoCluster {
 // guarantees according to the current consistency setting for the session.
 func (s *Session) Refresh() {
 	s.m.Lock()
-	s.slaveOk = s.consistency != Strong
+	s.subordinateOk = s.consistency != Strong
 	s.unsetSocket()
 	s.m.Unlock()
 }
@@ -2126,15 +2126,15 @@ func (s *Session) Refresh() {
 // connection is unsuitable (to a secondary server in a Strong session).
 func (s *Session) SetMode(consistency Mode, refresh bool) {
 	s.m.Lock()
-	debugf("Session %p: setting mode %d with refresh=%v (master=%p, slave=%p)", s, consistency, refresh, s.masterSocket, s.slaveSocket)
+	debugf("Session %p: setting mode %d with refresh=%v (main=%p, subordinate=%p)", s, consistency, refresh, s.mainSocket, s.subordinateSocket)
 	s.consistency = consistency
 	if refresh {
-		s.slaveOk = s.consistency != Strong
+		s.subordinateOk = s.consistency != Strong
 		s.unsetSocket()
 	} else if s.consistency == Strong {
-		s.slaveOk = false
-	} else if s.masterSocket == nil {
-		s.slaveOk = true
+		s.subordinateOk = false
+	} else if s.mainSocket == nil {
+		s.subordinateOk = true
 	}
 	s.m.Unlock()
 }
@@ -2172,11 +2172,11 @@ func (s *Session) SetSocketTimeout(d time.Duration) {
 	s.dialInfo.ReadTimeout = d
 	s.dialInfo.WriteTimeout = d
 
-	if s.masterSocket != nil {
-		s.masterSocket.SetTimeout(d)
+	if s.mainSocket != nil {
+		s.mainSocket.SetTimeout(d)
 	}
-	if s.slaveSocket != nil {
-		s.slaveSocket.SetTimeout(d)
+	if s.subordinateSocket != nil {
+		s.subordinateSocket.SetTimeout(d)
 	}
 	s.m.Unlock()
 }
@@ -2773,9 +2773,9 @@ func (c *Collection) NewIter(session *Session, firstBatch []bson.Raw, cursorId i
 	var server *mongoServer
 	csession := c.Database.Session
 	csession.m.RLock()
-	socket := csession.masterSocket
+	socket := csession.mainSocket
 	if socket == nil {
-		socket = csession.slaveSocket
+		socket = csession.subordinateSocket
 	}
 	if socket != nil {
 		server = socket.Server()
@@ -4171,8 +4171,8 @@ func (q *Query) Tail(timeout time.Duration) *Iter {
 func (s *Session) prepareQuery(op *queryOp) {
 	s.m.RLock()
 	op.mode = s.consistency
-	if s.slaveOk {
-		op.flags |= flagSlaveOk
+	if s.subordinateOk {
+		op.flags |= flagSubordinateOk
 	}
 	s.m.RUnlock()
 	return
@@ -5095,20 +5095,20 @@ func (s *Session) BuildInfo() (info BuildInfo, err error) {
 // ---------------------------------------------------------------------------
 // Internal session handling helpers.
 
-func (s *Session) acquireSocket(slaveOk bool) (*mongoSocket, error) {
+func (s *Session) acquireSocket(subordinateOk bool) (*mongoSocket, error) {
 
 	// Read-only lock to check for previously reserved socket.
 	s.m.RLock()
-	// If there is a slave socket reserved and its use is acceptable, take it as long
-	// as there isn't a master socket which would be preferred by the read preference mode.
-	if s.slaveSocket != nil && s.slaveSocket.dead == nil && s.slaveOk && slaveOk && (s.masterSocket == nil || s.consistency != PrimaryPreferred && s.consistency != Monotonic) {
-		socket := s.slaveSocket
+	// If there is a subordinate socket reserved and its use is acceptable, take it as long
+	// as there isn't a main socket which would be preferred by the read preference mode.
+	if s.subordinateSocket != nil && s.subordinateSocket.dead == nil && s.subordinateOk && subordinateOk && (s.mainSocket == nil || s.consistency != PrimaryPreferred && s.consistency != Monotonic) {
+		socket := s.subordinateSocket
 		socket.Acquire()
 		s.m.RUnlock()
 		return socket, nil
 	}
-	if s.masterSocket != nil && s.masterSocket.dead == nil {
-		socket := s.masterSocket
+	if s.mainSocket != nil && s.mainSocket.dead == nil {
+		socket := s.mainSocket
 		socket.Acquire()
 		s.m.RUnlock()
 		return socket, nil
@@ -5120,18 +5120,18 @@ func (s *Session) acquireSocket(slaveOk bool) (*mongoSocket, error) {
 	s.m.Lock()
 	defer s.m.Unlock()
 
-	if s.slaveSocket != nil && s.slaveOk && slaveOk && (s.masterSocket == nil || s.consistency != PrimaryPreferred && s.consistency != Monotonic) {
-		if s.slaveSocket.dead == nil {
-			s.slaveSocket.Acquire()
-			return s.slaveSocket, nil
+	if s.subordinateSocket != nil && s.subordinateOk && subordinateOk && (s.mainSocket == nil || s.consistency != PrimaryPreferred && s.consistency != Monotonic) {
+		if s.subordinateSocket.dead == nil {
+			s.subordinateSocket.Acquire()
+			return s.subordinateSocket, nil
 		} else {
 			s.unsetSocket()
 		}
 	}
-	if s.masterSocket != nil {
-		if s.masterSocket.dead == nil {
-			s.masterSocket.Acquire()
-			return s.masterSocket, nil
+	if s.mainSocket != nil {
+		if s.mainSocket.dead == nil {
+			s.mainSocket.Acquire()
+			return s.mainSocket, nil
 		} else {
 			s.unsetSocket()
 		}
@@ -5140,7 +5140,7 @@ func (s *Session) acquireSocket(slaveOk bool) (*mongoSocket, error) {
 	// Still not good.  We need a new socket.
 	sock, err := s.cluster().AcquireSocketWithPoolTimeout(
 		s.consistency,
-		slaveOk && s.slaveOk,
+		subordinateOk && s.subordinateOk,
 		s.syncTimeout,
 		s.queryConfig.op.serverTags,
 		s.dialInfo,
@@ -5157,16 +5157,16 @@ func (s *Session) acquireSocket(slaveOk bool) (*mongoSocket, error) {
 
 	// Keep track of the new socket, if necessary.
 	// Note that, as a special case, if the Eventual session was
-	// not refreshed (s.slaveSocket != nil), it means the developer
+	// not refreshed (s.subordinateSocket != nil), it means the developer
 	// asked to preserve an existing reserved socket, so we'll
-	// keep a master one around too before a Refresh happens.
-	if s.consistency != Eventual || s.slaveSocket != nil {
+	// keep a main one around too before a Refresh happens.
+	if s.consistency != Eventual || s.subordinateSocket != nil {
 		s.setSocket(sock)
 	}
 
-	// Switch over a Monotonic session to the master.
-	if !slaveOk && s.consistency == Monotonic {
-		s.slaveOk = false
+	// Switch over a Monotonic session to the main.
+	if !subordinateOk && s.consistency == Monotonic {
+		s.subordinateOk = false
 	}
 
 	return sock, nil
@@ -5175,31 +5175,31 @@ func (s *Session) acquireSocket(slaveOk bool) (*mongoSocket, error) {
 // setSocket binds socket to this section.
 func (s *Session) setSocket(socket *mongoSocket) {
 	info := socket.Acquire()
-	if info.Master {
-		if s.masterSocket != nil {
-			panic("setSocket(master) with existing master socket reserved")
+	if info.Main {
+		if s.mainSocket != nil {
+			panic("setSocket(main) with existing main socket reserved")
 		}
-		s.masterSocket = socket
+		s.mainSocket = socket
 	} else {
-		if s.slaveSocket != nil {
-			panic("setSocket(slave) with existing slave socket reserved")
+		if s.subordinateSocket != nil {
+			panic("setSocket(subordinate) with existing subordinate socket reserved")
 		}
-		s.slaveSocket = socket
+		s.subordinateSocket = socket
 	}
 }
 
-// unsetSocket releases any slave and/or master sockets reserved.
+// unsetSocket releases any subordinate and/or main sockets reserved.
 func (s *Session) unsetSocket() {
-	if s.masterSocket != nil {
-		debugf("unset master socket from session %p", s)
-		s.masterSocket.Release()
+	if s.mainSocket != nil {
+		debugf("unset main socket from session %p", s)
+		s.mainSocket.Release()
 	}
-	if s.slaveSocket != nil {
-		debugf("unset slave socket from session %p", s)
-		s.slaveSocket.Release()
+	if s.subordinateSocket != nil {
+		debugf("unset subordinate socket from session %p", s)
+		s.subordinateSocket.Release()
 	}
-	s.masterSocket = nil
-	s.slaveSocket = nil
+	s.mainSocket = nil
+	s.subordinateSocket = nil
 }
 
 func (iter *Iter) replyFunc() replyFunc {
