@@ -10,10 +10,10 @@ import (
 )
 
 var replThreadStates = [...]string{
-        "Waiting for master", // Waiting for master to send event
-        "Has read all relay log", // Has read all relay log; waiting for the slave I/O thread t
+        "Waiting for main", // Waiting for main to send event
+        "Has read all relay log", // Has read all relay log; waiting for the subordinate I/O thread t
         "Waiting on empty queue",
-        "Master has sent all binlog", // Master has sent all binlog to slave; waiting for binlog to be up
+        "Main has sent all binlog", // Main has sent all binlog to subordinate; waiting for binlog to be up
 }
 
 type ConnectionInfo struct {
